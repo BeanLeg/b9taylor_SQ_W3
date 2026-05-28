@@ -1,342 +1,586 @@
 // ============================================================
-// Week 2 Example 2: Platformer with Platforms Array
+// Week 3 Example 2: Full Fighting Game
 // ============================================================
 
 // ------------------------------------------------------------
-// PLATFORMS ARRAY
-// Each platform is an object with x, y, width, and height.
-// x and y are the TOP-LEFT corner (same as rect()).
-//
-// Storing platforms in an array means:
-//   - We can loop through all of them with one for loop
-//   - Adding a new platform = adding one line of data
-//   - Later we can load this data from a JSON file instead
+// GAME STATES
+// The game is always in exactly one state at a time.
+// Each state controls what gets drawn and what responds to input.
+// Storing states as constants prevents typos — if you mistype
+// STATE_FIGHT, JavaScript will throw an error instead of
+// silently using the wrong string.
 // ------------------------------------------------------------
-let platforms = [
-  // { x, y, w, h }
-  { x: 0, y: 410, w: 800, h: 40 }, // ground (full width floor)
-  { x: 80, y: 310, w: 120, h: 16 }, // left low platform
-  { x: 280, y: 240, w: 140, h: 16 }, // centre platform
-  { x: 500, y: 170, w: 120, h: 16 }, // right high platform
-  { x: 160, y: 150, w: 100, h: 16 }, // left high platform
-  { x: 360, y: 320, w: 110, h: 16 }, // centre low platform
-  { x: 620, y: 290, w: 130, h: 16 }, // far right platform
-];
+const STATE_START = "start";
+const STATE_FIGHT = "fight";
+const STATE_WIN = "win";
 
-let celesteBackground;
-let kiwi;
+let gameState = STATE_START;
+let winner = null; // stores "P1" or "P2" when the game ends
 
-function preload() {
-  celesteBackground = loadImage("assets/images/celesteBackground.png");
-  kiwi = loadImage("assets/images/kiwi.png");
+// ------------------------------------------------------------
+// SOUNDS
+// Loaded in preload() so they are ready before the game starts.
+// punchSounds is an array — a random one plays on each hit
+// so punches don't sound identical every time.
+// ------------------------------------------------------------
+let punchSounds = [];
+let winSound;
+let bgMusic;
+let darkFantasy;
+let swordBlock;
+let swordSlice;
+let swordHit;
+
+let bgImage;
+let portalClash;
+let kiwiImage;
+
+// ------------------------------------------------------------
+// FIGHTER CLASS
+// Extended from Example 1 to include health, attacking,
+// hit detection, and a visual flash when hit.
+// ------------------------------------------------------------
+class Fighter {
+  // ----------------------------------------------------------
+  // constructor()
+  // Sets up all properties for this fighter instance.
+  // "label" is new here — used to identify P1 or P2 when
+  // determining the winner.
+  // ----------------------------------------------------------
+  constructor(x, y, colour, controls, label) {
+    // Position and physics
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.speed = 0.5;
+    this.maxSpeed = 4;
+    this.friction = 0.78;
+    this.r = 28;
+
+    // Appearance
+    this.colour = colour;
+    this.label = label; // "P1" or "P2"
+    this.blobT = random(100);
+
+    // Controls
+    this.controls = controls;
+
+    // Health — 3 hits to lose
+    this.maxHealth = 3;
+    this.health = 3;
+
+    // Attack state
+    this.isAttacking = false;
+    this.attackTimer = 0;
+    this.attackDuration = 18; // frames the punch stays active
+    this.attackCooldown = 0; // frames until this fighter can attack again
+    this.punchReach = 80; // how far the dagger extends in pixels
+    this.punchDir = 1; // direction of punch: 1 = right, -1 = left
+
+    // Block state
+    this.isBlocking = false;
+
+    // Hit flash — briefly turns white when hit
+    this.hitFlash = 0;
+
+    // Prevents registering more than one hit per attack swing
+    this.hitLanded = false;
+  }
+
+  // ----------------------------------------------------------
+  // update()
+  // Called every frame during the FIGHT state.
+  // Returns early if the game is not in progress.
+  // ----------------------------------------------------------
+  update() {
+    if (gameState !== STATE_FIGHT) return;
+
+    this.handleInput();
+    this.applyPhysics();
+
+    // Count down attack timer — ends the attack after attackDuration frames
+    if (this.isAttacking) {
+      this.attackTimer--;
+      if (this.attackTimer <= 0) {
+        this.isAttacking = false;
+        this.hitLanded = false;
+        this.attackCooldown = 20; // short cooldown before next punch
+      }
+    }
+
+    // Count down cooldown each frame until it reaches zero
+    if (this.attackCooldown > 0) this.attackCooldown--;
+
+    // Count down hit flash each frame until it reaches zero
+    if (this.hitFlash > 0) this.hitFlash--;
+  }
+
+  // ----------------------------------------------------------
+  // handleInput()
+  // Reads keyboard state for this fighter's specific keys.
+  // keyIsDown() returns true every frame the key is held —
+  // this gives smooth continuous movement.
+  // ----------------------------------------------------------
+  handleInput() {
+    if (keyIsDown(this.controls.left)) this.vx -= this.speed;
+    if (keyIsDown(this.controls.right)) this.vx += this.speed;
+
+    // Clamp speed — prevents infinite acceleration
+    this.vx = constrain(this.vx, -this.maxSpeed, this.maxSpeed);
+
+    // Friction — gradually slows the fighter when no key is pressed
+    if (!keyIsDown(this.controls.left) && !keyIsDown(this.controls.right)) {
+      this.vx *= this.friction;
+    }
+
+    // Block state — held key toggles blocking on/off each frame
+    this.isBlocking = keyIsDown(this.controls.block);
+  }
+
+  // ----------------------------------------------------------
+  // applyPhysics()
+  // Moves the fighter and keeps them inside the canvas.
+  // No gravity in this example — fighters stay on the ground.
+  // ----------------------------------------------------------
+  applyPhysics() {
+    this.x += this.vx;
+    this.x = constrain(this.x, this.r, width - this.r);
+  }
+
+  // ----------------------------------------------------------
+  // startAttack()
+  // Called from keyPressed() when the attack key is pressed.
+  // Uses keyPressed() rather than keyIsDown() so the punch
+  // fires once per press, not every frame.
+  // targetX is the opponent's x position — used to set the
+  // direction the fist extends.
+  // ----------------------------------------------------------
+  startAttack(targetX) {
+    // Do nothing if already attacking or in cooldown
+    if (this.isAttacking || this.attackCooldown > 0) return;
+
+    this.isAttacking = true;
+    this.attackTimer = this.attackDuration;
+    this.hitLanded = false;
+
+    // Punch extends toward the opponent
+    this.punchDir = targetX > this.x ? 1 : -1;
+
+    //Play sword sound when attacking
+    swordSlice.play();
+  }
+
+  // ----------------------------------------------------------
+  // getPunchX()
+  // Returns the x position of the fist tip.
+  // Used in checkHits() to test whether the punch connects.
+  // ----------------------------------------------------------
+  getPunchX() {
+    return this.x + this.punchDir * this.punchReach;
+  }
+
+  // ----------------------------------------------------------
+  // takeHit()
+  // Called on this fighter when the opponent's punch connects.
+  // Blocked punches deal no damage.
+  // ----------------------------------------------------------
+  takeHit() {
+    if (this.isBlocking) {
+      swordBlock.play();
+      return; // blocked — no damage
+    }
+
+    swordHit.play();
+    this.health--;
+    this.hitFlash = 12; // flash white for 12 frames
+
+    // If health reaches zero, end the game
+    if (this.health <= 0) {
+      this.health = 0;
+      // The winner is whichever fighter is NOT this one
+      endGame(this.label === "P1" ? "P2" : "P1");
+    }
+  }
+
+  // ----------------------------------------------------------
+  // draw()
+  // Draws the shield ring, fist, blob body, and eyes.
+  // push() and pop() isolate drawing styles to this method.
+  // ----------------------------------------------------------
+  draw() {
+    push();
+
+    // Shield ring when blocking
+    if (this.isBlocking) {
+      noFill();
+      stroke(255, 255, 255, 150);
+      strokeWeight(3);
+      ellipse(this.x, this.y, (this.r + 16) * 2, (this.r + 16) * 2);
+    }
+
+    // Draw dagger when attacking
+    if (this.isAttacking) {
+      fill(this.hitFlash > 0 ? color(255) : this.colour);
+      noStroke();
+
+      let tipX = this.getPunchX();
+      let handleBackX = this.x - this.punchDir * 10;
+      let handleFrontX = this.x + this.punchDir * 2;
+      let guardX = this.x + this.punchDir * 10;
+      let bladeBaseX = this.x + this.punchDir * 22;
+      let y = this.y;
+      let handleHalfH = 6;
+      let guardHalfH = 4;
+      let bladeHalfH = 8;
+
+      beginShape();
+      vertex(handleBackX, y - handleHalfH);
+      vertex(handleBackX, y + handleHalfH);
+      vertex(this.x - this.punchDir * 2, y + handleHalfH);
+      vertex(handleFrontX, y + handleHalfH);
+      vertex(guardX, y + guardHalfH);
+      vertex(bladeBaseX, y + bladeHalfH);
+      vertex(tipX, y);
+      vertex(bladeBaseX, y - bladeHalfH);
+      vertex(guardX, y - guardHalfH);
+      vertex(handleFrontX, y - handleHalfH);
+      vertex(this.x - this.punchDir * 2, y - handleHalfH);
+      endShape(CLOSE);
+    }
+
+    // Blob body — flash white when hit, normal colour otherwise
+    fill(this.hitFlash > 0 ? color(255) : this.colour);
+    noStroke();
+
+    beginShape();
+    let numPoints = 48;
+    for (let i = 0; i < numPoints; i++) {
+      let angle = (TWO_PI / numPoints) * i;
+      let noiseVal = noise(
+        cos(angle) * 0.8 + this.blobT,
+        sin(angle) * 0.8 + this.blobT,
+      );
+      let r = this.r + map(noiseVal, 0, 1, -7, 7);
+      vertex(this.x + cos(angle) * r, this.y + sin(angle) * r);
+    }
+    endShape(CLOSE);
+
+    // Eyes
+    fill(10);
+    ellipse(this.x - 9, this.y - 7, 8, 8);
+    ellipse(this.x + 9, this.y - 7, 8, 8);
+
+    pop();
+
+    // Advance blob animation each frame
+    this.blobT += 0.015;
+  }
 }
 
-// ------------------------------------------------------------
-// SPIKE CONFIG
-// Spikes live on the top of a platform (index below) and
-// will kill the player on contact, forcing a respawn.
-// ------------------------------------------------------------
-const SPIKE_PLATFORM_INDEX = 3; // top-right platform in platforms[]
-const SPIKE_HEIGHT = 14;
-const SPIKE_WIDTH = 20;
-const SPIKE_COLOR = [175, 10, 10];
+// ============================================================
+// GLOBAL VARIABLES
+// ============================================================
+let fighter1, fighter2;
+let groundY;
 
-// ------------------------------------------------ ------------
-// PLAYER OBJECT — same structure as Example 1
-// w and h are added here for use in collision detection.
-// ------------------------------------------------------------
-let player = {
-  x: 100,
-  y: 100,
+// ============================================================
+// preload()
+// Runs once before setup(). Loads all sounds so they are
+// ready before the game starts.
+// ============================================================
+function preload() {
+  // Preload all  sound assets
+  winSound = loadSound("assets/sounds/win.wav");
+  bgMusic = loadSound("assets/sounds/background.mp3");
+  darkFantasy = loadSound("assets/sounds/darkFantasy.mp3");
+  swordBlock = loadSound("assets/sounds/swordBlock.mp3");
+  swordSlice = loadSound("assets/sounds/swordSlice.mp3");
+  swordHit = loadSound("assets/sounds/swordHit.mp3");
 
-  vx: 0, // horizontal velocity
-  vy: 0, // vertical velocity
-
-  r: 20, // visual radius for collision
-  facing: -1, // 1 = right, -1 = left
-
-  // Movement tuning — change these to adjust how the game feels
-  speed: 0.55, // horizontal acceleration per frame
-  maxSpeed: 4.5, // maximum horizontal speed
-  jumpForce: -12, // upward velocity applied when jumping (negative = upward)
-  friction: 0.78, // horizontal slowdown when no key is pressed (0–1, lower = more friction)
-
-  onGround: false, // tracks whether the player is standing on something
-};
-
-// ------------------------------------------------------------
-// PHYSICS CONSTANTS
-// Defined outside the player object so they can be shared
-// across multiple objects (e.g. enemies)
-// ------------------------------------------------------------
-const GRAVITY = 0.6; // downward force added to vy every frame
-
-// Blob animation time — increases each frame to animate the wobble
-let blobT = 0;
-
-// Platform colour stored as an array so it can be reused easily
-const PLATFORM_COLOR = [255, 160, 50]; // warm orange
+  // Preload image assets too
+  bgImage = loadImage("assets/images/portalBackground.png");
+  cake = loadImage("assets/images/cake.png");
+  portalClash = loadImage("assets/images/portalClash.png");
+}
 
 // ============================================================
 // setup()
 // Runs once at the very start of the sketch.
-// Sets up the canvas and positions the player on the ground.
+// Creates the canvas and both fighter instances.
 // ============================================================
 function setup() {
   createCanvas(800, 450);
+  groundY = height - 80;
+  setupFighters();
+}
 
-  // Place player on top of the ground platform (index 0 in the array)
-  player.y = platforms[0].y - player.r;
+// ------------------------------------------------------------
+// setupFighters()
+// Creates both fighter instances with their starting
+// positions, colours, and control keys.
+// Called on setup and again on rematch to reset state.
+//
+// Key code reference:
+// 65=A, 68=D, 70=F, 71=G (Player 1)
+// LEFT_ARROW=37, RIGHT_ARROW=39, 75=K, 76=L (Player 2)
+// ------------------------------------------------------------
+function setupFighters() {
+  fighter1 = new Fighter(
+    200,
+    groundY - 28,
+    color(3, 137, 252),
+    { left: 65, right: 68, attack: 70, block: 71 }, // A D F G
+    "P1",
+  );
+
+  fighter2 = new Fighter(
+    600,
+    groundY - 28,
+    color(255, 150, 30), // orange
+    { left: LEFT_ARROW, right: RIGHT_ARROW, attack: 75, block: 76 }, // Arrows K L
+    "P2",
+  );
 }
 
 // ============================================================
 // draw()
 // Runs repeatedly in a loop after setup() finishes.
-// Each frame we clear the background, handle input,
-// apply physics, resolve collisions, and draw everything.
+// Switches what gets drawn based on the current game state.
 // ============================================================
 function draw() {
-  image(celesteBackground, 0, 0, width, height);
+  if (gameState === STATE_START) {
+    image(portalClash, 0, 0, width, height);
+  } else if (gameState === STATE_WIN) {
+    image(cake, 0, 0, width, height);
+  } else {
+    image(bgImage, 0, -30, width, height);
+  }
 
-  handleInput();
-  applyPhysics();
-  resolvePlatformCollisions();
-
-  drawPlatforms();
-  drawPlayer();
-  drawHUD();
-
-  blobT += 0.015; // advance blob wobble animation each frame
+  if (gameState === STATE_START) {
+    drawStartScreen();
+  } else if (gameState === STATE_FIGHT) {
+    drawArena();
+    updateAndDrawFighters();
+    checkHits();
+    drawHealthBars();
+    drawFightHUD();
+  } else if (gameState === STATE_WIN) {
+    drawWinScreen();
+  }
 }
 
+// ============================================================
+// GAME STATE FUNCTIONS
+// ============================================================
+
 // ------------------------------------------------------------
-// handleInput()
-// Checks which keys are held down this frame and updates
-// the player's velocity accordingly.
-// keyIsDown() returns true as long as the key is held —
-// unlike keyPressed(), which only fires once per press.
-// We check both arrow keys and WASD so either works.
+// startGame()
+// Transitions to the FIGHT state, resets fighters,
+// and starts background music.
 // ------------------------------------------------------------
-function handleInput() {
-  // --- Horizontal movement ---
-  if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
-    // LEFT or A
-    player.vx -= player.speed;
-    player.facing = 1;
-  }
-  if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
-    // RIGHT or D
-    player.vx += player.speed;
-    player.facing = -1;
-  }
-
-  // --- Clamp horizontal speed ---
-  // constrain(value, min, max) keeps a value within a range.
-  // Without this, holding a key forever would accelerate infinitely.
-  player.vx = constrain(player.vx, -player.maxSpeed, player.maxSpeed);
-
-  // --- Apply friction when no horizontal key is pressed ---
-  // Multiplying by a value less than 1 gradually slows the player down.
-  if (
-    !keyIsDown(LEFT_ARROW) &&
-    !keyIsDown(65) &&
-    !keyIsDown(RIGHT_ARROW) &&
-    !keyIsDown(68)
-  ) {
-    player.vx *= player.friction;
-  }
-
-  // --- Jump ---
-  // The player can only jump when standing on the ground (onGround = true).
-  // This prevents jumping again mid-air.
-  if ((keyIsDown(UP_ARROW) || keyIsDown(87)) && player.onGround) {
-    // UP or W
-    player.vy = player.jumpForce;
-    player.onGround = false;
+function startGame() {
+  gameState = STATE_FIGHT;
+  winner = null;
+  setupFighters();
+  if (!darkFantasy.isPlaying()) {
+    darkFantasy.loop();
   }
 }
 
 // ------------------------------------------------------------
-// applyPhysics()
-// Each frame we:
-//   1. Add gravity to vertical velocity (vy)
-//   2. Move the player by its velocity (vx, vy)
-//   3. Reset onGround so collision can set it again
-//   4. Handle falling off the bottom of the canvas
+// endGame()
+// Transitions to the WIN state, stores the winner's label,
+// stops music, and plays the win sound.
 // ------------------------------------------------------------
-function applyPhysics() {
-  // 1. Apply gravity — pulls the player down every frame
-  player.vy += GRAVITY;
-
-  // 2. Move player by its current velocity
-  player.x += player.vx;
-  player.y += player.vy;
-
-  // 3. Keep player inside canvas horizontally
-  player.x = constrain(player.x, player.r, width - player.r);
-
-  // 4. If player falls below the canvas, reset to start position
-  if (player.y > height + 100) {
-    player.x = 100;
-    player.y = platforms[0].y - player.r;
-    player.vx = 0;
-    player.vy = 0;
-  }
-
-  // Assume in the air until collision check says otherwise
-  player.onGround = false;
+function endGame(winnerLabel) {
+  gameState = STATE_WIN;
+  winner = winnerLabel;
+  darkFantasy.stop();
+  winSound.play();
 }
 
-function killPlayer() {
-  // Respawn on the ground (bottom) at the start position
-  player.x = 100;
-  player.y = platforms[0].y - player.r;
-  player.vx = 0;
-  player.vy = 0;
-}
+// ============================================================
+// DRAW FUNCTIONS
+// ============================================================
 
 // ------------------------------------------------------------
-// resolvePlatformCollisions()
-// Loops through every platform and checks if the player
-// is landing on top of it.
-//
-// The collision check asks three questions:
-//   1. Is the player horizontally overlapping the platform?
-//   2. Is the player falling downward (vy >= 0)?
-//   3. Is the player's bottom at or below the platform top?
-//
-// If all three are true, we snap the player to sit on top.
-// This top-only check means the player can jump through
-// platforms from below, which is a common platformer pattern.
+// drawStartScreen()
+// Displayed before the game begins.
 // ------------------------------------------------------------
-function resolvePlatformCollisions() {
-  for (let i = 0; i < platforms.length; i++) {
-    let p = platforms[i];
+function drawStartScreen() {
+  // Title
+  fill(255);
+  textAlign(CENTER);
+  textSize(52);
+  text("BLOB BRAWL", width / 2, 100);
 
-    // Player's bounding box edges
-    let playerLeft = player.x - player.r;
-    let playerRight = player.x + player.r;
-    let playerBottom = player.y + player.r;
+  // Subtitle
+  fill(160);
+  textSize(18);
+  text("First to land 3 hits wins", width / 2, height - 80);
 
-    // Platform edges
-    let platLeft = p.x;
-    let platRight = p.x + p.w;
-    let platTop = p.y;
+  // Controls — each player shown in their colour
+  textSize(14);
+  fill(3, 137, 252);
+  text("P1: A/D move   F attack   G block", width / 2, height - 60);
+  fill(255, 150, 30);
+  text("P2: Arrows move   K attack   L block", width / 2, height - 40);
 
-    // 1. Check horizontal overlap
-    let overlapsHorizontally = playerRight > platLeft && playerLeft < platRight;
-
-    // --- Spike collision checks (kills player) ---
-    if (i === SPIKE_PLATFORM_INDEX) {
-      let spikeTop = platTop - SPIKE_HEIGHT;
-      let platBottom = platTop + p.h;
-      let playerTop = player.y - player.r;
-
-      // Top-facing spikes: player lands on them from above
-      if (
-        overlapsHorizontally &&
-        player.vy >= 0 &&
-        playerBottom > spikeTop &&
-        playerBottom <= platTop + 20
-      ) {
-        killPlayer();
-        return;
-      }
-
-      // Bottom-facing spikes: player hits them from below when moving upward
-      if (
-        overlapsHorizontally &&
-        player.vy <= 0 &&
-        playerTop < platBottom + SPIKE_HEIGHT &&
-        playerTop >= platBottom - 20
-      ) {
-        killPlayer();
-        return;
-      }
-    }
-
-    // 2 & 3. Check if landing on top (falling down onto the platform surface)
-    // The small tolerance (+ 20) prevents the player clipping through
-    // fast-moving platforms or getting stuck on edges.
-    let landingOnTop =
-      player.vy >= 0 && playerBottom >= platTop && playerBottom <= platTop + 20;
-
-    if (overlapsHorizontally && landingOnTop) {
-      player.y = platTop - player.r; // snap to platform surface
-      player.vy = 0; // stop falling
-      player.onGround = true; // allow jumping again
-    }
-  }
+  // Start prompt
+  fill(255);
+  textSize(16);
+  text("Press ENTER to start", width / 2, height - 15);
 }
 
 // ------------------------------------------------------------
-// drawPlatforms()
-// Loops through the platforms array and draws each one.
-// This is the same loop pattern used to draw any collection
-// of objects — enemies, coins, tiles, etc.
+// drawWinScreen()
+// Displayed after a fighter's health reaches zero.
+// A semi-transparent overlay sits on top of the arena.
 // ------------------------------------------------------------
-function drawPlatforms() {
-  fill(PLATFORM_COLOR[0], PLATFORM_COLOR[1], PLATFORM_COLOR[2]);
+function drawWinScreen() {
+  // Semi-transparent overlay around text
+  fill(0, 0, 0, 160);
+  rect(width / 2 - 200, height / 2 - 80, 400, 160, 10);
+
+  // Winner text — shown in the winner's colour
+  fill(winner === "P1" ? color(3, 137, 252) : color(255, 150, 30));
+  textAlign(CENTER);
+  textSize(56);
+  text(winner + " WINS!", width / 2, height / 2 - 30);
+
+  // Rematch prompt
+  fill(255);
+  textSize(18);
+  text("Press ENTER to rematch", width / 2, height / 2 + 40);
+}
+
+// ------------------------------------------------------------
+// drawArena()
+// Draws the ground plane and dividing line.
+// ------------------------------------------------------------
+function drawArena() {
+  fill(100);
   noStroke();
+  rect(0, groundY, width, height - groundY);
 
-  for (let i = 0; i < platforms.length; i++) {
-    let p = platforms[i];
-    rect(p.x, p.y, p.w, p.h, 6); // rounded corners
+  stroke(80);
+  strokeWeight(1);
+  line(0, groundY, width, groundY);
+}
 
-    // Draw spikes on the configured platform
-    if (i === SPIKE_PLATFORM_INDEX) {
-      push();
-      fill(SPIKE_COLOR[0], SPIKE_COLOR[1], SPIKE_COLOR[2]);
-      noStroke();
-      let spikeW = SPIKE_WIDTH;
-      for (let sx = p.x; sx < p.x + p.w; sx += spikeW) {
-        let x1 = sx;
-        let x2 = min(sx + spikeW / 2, p.x + p.w);
-        let x3 = min(sx + spikeW, p.x + p.w);
-        // Top-facing spike
-        triangle(x1, p.y, x2, p.y - SPIKE_HEIGHT, x3, p.y);
-      }
+// ------------------------------------------------------------
+// updateAndDrawFighters()
+// Updates physics and input, then draws both fighters.
+// Separated from draw() to keep it readable.
+// ------------------------------------------------------------
+function updateAndDrawFighters() {
+  fighter1.update();
+  fighter2.update();
+  fighter1.draw();
+  fighter2.draw();
+}
 
-      // Bottom-facing spikes (pointing downward)
-      for (let sx = p.x; sx < p.x + p.w; sx += spikeW) {
-        let x1 = sx;
-        let x2 = min(sx + spikeW / 2, p.x + p.w);
-        let x3 = min(sx + spikeW, p.x + p.w);
-        triangle(x1, p.y + p.h, x2, p.y + p.h + SPIKE_HEIGHT, x3, p.y + p.h);
-      }
-      pop();
+// ------------------------------------------------------------
+// checkHits()
+// Called every frame during the FIGHT state.
+// Checks if an attacking fighter's fist overlaps the opponent.
+// hitLanded prevents the same swing from registering twice.
+// ------------------------------------------------------------
+function checkHits() {
+  // Fighter 1 hitting Fighter 2
+  if (fighter1.isAttacking && !fighter1.hitLanded) {
+    let fistX = fighter1.getPunchX();
+    let dist = abs(fistX - fighter2.x);
+    if (dist < fighter2.r + 10) {
+      fighter2.takeHit();
+      fighter1.hitLanded = true;
+    }
+  }
+
+  // Fighter 2 hitting Fighter 1
+  if (fighter2.isAttacking && !fighter2.hitLanded) {
+    let fistX = fighter2.getPunchX();
+    let dist = abs(fistX - fighter1.x);
+    if (dist < fighter1.r + 10) {
+      fighter1.takeHit();
+      fighter2.hitLanded = true;
     }
   }
 }
 
 // ------------------------------------------------------------
-// drawPlayer()
-// The blob is drawn as a polygon using noise() to offset
-// each vertex slightly, creating an organic wobble effect.
-// push() and pop() save and restore drawing settings so
-// styles set here don't affect other drawing functions.
+// drawHealthBars()
+// Drawn as two rect()s per player — a grey background bar
+// and a coloured health bar that shrinks as health decreases.
+// map() converts health (0–3) to bar width in pixels.
 // ------------------------------------------------------------
-function drawPlayer() {
-  push(); // save current drawing settings
+function drawHealthBars() {
+  let barW = 200;
+  let barH = 18;
+  let barY = 45;
+  let padding = 30;
 
-  translate(player.x, player.y);
-  scale(player.facing, 1);
-  imageMode(CENTER);
-  image(kiwi, 0, 0, player.r * 2.8, player.r * 2.8);
+  // Player 1 health bar — left side, fills left to right
+  let p1W = map(fighter1.health, 0, fighter1.maxHealth, 0, barW);
+  fill(40);
+  rect(padding, barY, barW, barH, 4);
+  fill(3, 137, 252);
+  rect(padding, barY, p1W, barH, 4);
 
-  pop(); // restore drawing settings
-}
+  // Player 2 health bar — right side, fills right to left
+  let p2W = map(fighter2.health, 0, fighter2.maxHealth, 0, barW);
+  fill(40);
+  rect(width - padding - barW, barY, barW, barH, 4);
+  fill(255, 150, 30);
+  rect(width - padding - p2W, barY, p2W, barH, 4);
 
-// ------------------------------------------------------------
-// drawHUD()
-// HUD = Heads Up Display.
-// Shows controls on screen so the player always knows
-// how to interact without needing external instructions.
-// ------------------------------------------------------------
-function drawHUD() {
-  fill(180);
-  noStroke();
+  // Labels
+  fill(255);
   textSize(13);
+  noStroke();
   textAlign(LEFT);
-  text("Move: Arrow Keys or WASD   Jump: W or Up Arrow", 16, 24);
+  text("P1", padding, barY - 5);
+  textAlign(RIGHT);
+  text("P2", width - padding, barY - 5);
+}
+
+// ------------------------------------------------------------
+// drawFightHUD()
+// HUD = Heads Up Display.
+// Shows controls at the bottom of the screen during a fight.
+// ------------------------------------------------------------
+function drawFightHUD() {
+  noStroke();
+  fill(0);
+  textSize(12);
+  textAlign(LEFT);
+  text("A/D move   F attack   G block", 16, height - 12);
+  textAlign(RIGHT);
+  text("Arrows move   K attack   L block", width - 16, height - 12);
+}
+
+// ============================================================
+// keyPressed()
+// Used for actions that fire ONCE per press (attack, start).
+// keyIsDown() is used for held actions (movement, blocking).
+// This is an important distinction — keyPressed() fires once
+// per keypress, keyIsDown() fires every frame the key is held.
+// ============================================================
+function keyPressed() {
+  // Start or rematch — only responds to ENTER
+  if (keyCode === ENTER) {
+    if (gameState === STATE_START || gameState === STATE_WIN) {
+      startGame();
+    }
+  }
+
+  // Player 1 attack — F key (keyCode 70)
+  if (keyCode === 70 && gameState === STATE_FIGHT) {
+    fighter1.startAttack(fighter2.x);
+  }
+
+  // Player 2 attack — K key (keyCode 75)
+  if (keyCode === 75 && gameState === STATE_FIGHT) {
+    fighter2.startAttack(fighter1.x);
+  }
 }
