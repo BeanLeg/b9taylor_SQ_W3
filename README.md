@@ -20,14 +20,15 @@ Press **ENTER** to start or rematch.
 
 ## Assets
 
-File | Source
-`assets/sounds/punch_1.wav` – `punch_9.wav` | Punch SFX — OpenGameArt.org [1]
-`assets/sounds/win.wav` listener4me, Win Sound Effect — OpenGameArt.org [2]
-`assets/sounds/background.mp3`| Matthew Pablo, Space Dimensions — OpenGameArt.org [3]
-`assets/sounds/darkFantasy.mp3` | https://pixabay.com/music/main-title-island-of-the-lost-dark-fantasy-background-music-110368/ [4]
-`assets/sounds/swordBlock.mp3` | DRAGON-STUDIO. Sword Clash/hit | royalty-free music - pixabay. Retrieved May 27, 2026 from https://pixabay.com/sound-effects/sword-clashhit-393837/ [5]
-`assets/sounds/swordSlice.mp3` | https://pixabay.com/sound-effects/film-special-effects-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824/ [6]
-`assets/sounds/swordHit.mp3` | https://pixabay.com/sound-effects/film-special-effects-violent-sword-slice-393839/ [7]
+| File                                                                        | Source                                                                                            |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `assets/sounds/punch_1.wav` – `punch_9.wav`                                 | Punch SFX — OpenGameArt.org [1]                                                                   |
+| `assets/sounds/win.wav` listener4me, Win Sound Effect — OpenGameArt.org [2] |
+| `assets/sounds/background.mp3`                                              | Matthew Pablo, Space Dimensions — OpenGameArt.org [3]                                             |
+| `assets/sounds/darkFantasy.mp3`                                             | https://pixabay.com/music/main-title-island-of-the-lost-dark-fantasy-background-music-110368/ [4] |
+| `assets/sounds/swordBlock.mp3`                                              | DRAGON-STUDIO. Sword Clash/hit                                                                    | royalty-free music - pixabay. Retrieved May 27, 2026 from https://pixabay.com/sound-effects/sword-clashhit-393837/ [5] |
+| `assets/sounds/swordSlice.mp3`                                              | https://pixabay.com/sound-effects/                                                                | film-special-effects-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824/ [6]                            |
+| `assets/sounds/swordHit.mp3`                                                | https://pixabay.com/sound-effects/film-special-effects-violent-sword-slice-393839/ [7]            |
 
 ## References
 
