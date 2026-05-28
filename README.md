@@ -1,14 +1,8 @@
-# Side Quest Week 3: Portal Battle
+# Side Quest Week 3: Portal Clash
 
 ## Setup and Interaction Instructions
 
 To run the sketch locally, open `index.html` in Google Chrome using Live Server.
-
-Sound files must be present in `assets/sounds/` before running:
-
-- `punch_1.wav` through `punch_9.wav`
-- `win.wav`
-- `background.mp3`
 
 **Player 1 Controls:**
 
@@ -23,13 +17,6 @@ Sound files must be present in `assets/sounds/` before running:
 - Block: L
 
 Press **ENTER** to start or rematch.
-
-**Opening the Chrome Console**
-
-- **Windows:** Press `F12` or `Ctrl + Shift + J`, then click the **Console** tab
-- **Mac:** Press `Cmd + Option + J`
-
-The console will show any errors in your sketch.
 
 ## Assets
 
