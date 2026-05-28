@@ -20,28 +20,19 @@ Press **ENTER** to start or rematch.
 
 ## Assets
 
-| File                                                                        | Source                                                                                            |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `assets/sounds/punch_1.wav` – `punch_9.wav`                                 | Punch SFX — OpenGameArt.org [1]                                                                   |
-| `assets/sounds/win.wav` listener4me, Win Sound Effect — OpenGameArt.org [2] |
-| `assets/sounds/background.mp3`                                              | Matthew Pablo, Space Dimensions — OpenGameArt.org [3]                                             |
-| `assets/sounds/darkFantasy.mp3`                                             | https://pixabay.com/music/main-title-island-of-the-lost-dark-fantasy-background-music-110368/ [4] |
-| `assets/sounds/swordBlock.mp3`                                              | DRAGON-STUDIO. Sword Clash/hit                                                                    | royalty-free music - pixabay. Retrieved May 27, 2026 from https://pixabay.com/sound-effects/sword-clashhit-393837/ [5] |
-| `assets/sounds/swordSlice.mp3`                                              | https://pixabay.com/sound-effects/                                                                | film-special-effects-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824/ [6]                            |
-| `assets/sounds/swordHit.mp3`                                                | https://pixabay.com/sound-effects/film-special-effects-violent-sword-slice-393839/ [7]            |
+| File                            | Source                                                                                                                        |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `assets/sounds/darkFantasy.mp3` | https://pixabay.com/music/main-title-island-of-the-lost-dark-fantasy-background-music-110368/ [1]                             |
+| `assets/sounds/swordBlock.mp3`  | https://pixabay.com/sound-effects/sword-clashhit-393837/ [2]                                                                  |
+| `assets/sounds/swordSlice.mp3`  | https://pixabay.com/sound-effects/film-special-effects-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824/ [3] |
+| `assets/sounds/swordHit.mp3`    | https://pixabay.com/sound-effects/film-special-effects-violent-sword-slice-393839/ [4]                                        |
 
 ## References
 
-[1] listener4me. n.d. _Win Sound Effect_. OpenGameArt.org. Retrieved May 1, 2026, from https://opengameart.org/content/win-sound-effect
+[1] OB-LIX. Island of the lost - dark fantasy background music | royalty-free music - pixabay. Retrieved May 26, 2026 from https://pixabay.com/music/main-title-island-of-the-lost-dark-fantasy-background-music-110368/
 
-[2] Pablo, Matthew. n.d. _Space Dimensions (Techno Version)_. OpenGameArt.org. Retrieved May 1, 2026, from https://opengameart.org/content/space-dimensions-techno-version
+[2] DRAGON-STUDIO. Sword Clash/hit | royalty-free music - pixabay. Retrieved May 27, 2026 from https://pixabay.com/sound-effects/sword-clashhit-393837/
 
-[3] Punch SFX. n.d. OpenGameArt.org. Retrieved May 1, 2026, from https://opengameart.org/content/punch-sfx
+[3] Cyberwave-Orchestra. (n.d.). Fantasy Game Sword Cut Sound Effect. Pixabay. https://pixabay.com/sound-effects/film-special-effects-fantasy-game-sword-cut-sound-effect-get-more-on-my-patreon-339824/
 
-[4] OB-LIX. Island of the lost - dark fantasy background music | royalty-free music - pixabay. Retrieved May 26, 2026 from https://pixabay.com/music/main-title-island-of-the-lost-dark-fantasy-background-music-110368/
-
-[5] DRAGON-STUDIO. Sword Clash/hit | royalty-free music - pixabay. Retrieved May 27, 2026 from https://pixabay.com/sound-effects/sword-clashhit-393837/
-
-[6] Cyberwave-Orchestra. Free fantasy sound effects download - pixabay. Retrieved May 27, 2026 from https://pixabay.com/sound-effects/search/fantasy/
-
-[7] DRAGON-STUDIO. Violent sword slice | royalty-free music - pixabay. Retrieved May 27, 2026b from https://pixabay.com/sound-effects/violent-sword-slice-393839/
+[4] DRAGON-STUDIO. Violent sword slice | royalty-free music - pixabay. Retrieved May 27, 2026b from https://pixabay.com/sound-effects/violent-sword-slice-393839/
